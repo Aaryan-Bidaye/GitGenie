@@ -18,6 +18,8 @@ MODEL = "anthropic/claude-4.5-sonnet"
 def ensure_openrouter_key() -> str:
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
+        with open(".env", "w") as f:
+            f.write(f"OPENROUTER_API_KEY={input('Enter API Key: ')}")
         raise RuntimeError("Missing OPENROUTER_API_KEY in environment or .env file.")
     return api_key
 
