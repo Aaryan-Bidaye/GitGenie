@@ -12,6 +12,7 @@ load_dotenv()
 
 app = typer.Typer(help="AI-powered git commit CLI")
 
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-4.5-sonnet"
 
@@ -88,6 +89,42 @@ def summarize_with_openrouter(prompt: str, model: str) -> str:
     data = resp.json()
     return data["choices"][0]["message"]["content"].strip()
 
+def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> str:
+    """
+    Ask the LLM to classify the impact as Low / Medium / High.
+    """
+    prompt = (
+        "You are assessing the impact of a code change for release notes.\n"
+        "Given the commit subject, body, and diff, reply with exactly ONE word: Low, Medium, or High.\n"
+        "High = breaking changes, major new features, large refactors, security fixes.\n"
+        "Medium = feature improvements, behavior changes, notable bug fixes.\n"
+        "Low = small fixes, docs, tests, formatting.\n\n"
+        f"Subject: {subject}\n\nBody:\n{body or '(none)'}\n\nDIFF START\n{diff or '(empty)'}\nDIFF END"
+    )
+    result = summarize_with_openrouter(prompt, model).strip()
+    norm = result.split()[0].capitalize()
+    return norm if norm in {"Low", "Medium", "High"} else "Low"
+
+def send_commit_to_backend(payload: dict) -> None:
+    """
+    Placeholder sender. If BACKEND_API_URL is unset, just print the JSON.
+    Otherwise send a POST to your backend endpoint.
+    """
+    import json
+    if not BACKEND_API_URL:
+        typer.echo("\n(No BACKEND_API_URL set — showing payload instead):")
+        typer.echo(json.dumps(payload, indent=2))
+        return
+
+    try:
+        resp = requests.post(BACKEND_API_URL, json=payload, timeout=20)
+        if resp.status_code // 100 != 2:
+            typer.echo(f"Backend responded {resp.status_code}: {resp.text}")
+        else:
+            typer.echo("Commit data sent to backend.")
+    except Exception as e:
+        typer.echo(f"Failed to send to backend: {e}")
+
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
     lines = [ln.rstrip() for ln in message.splitlines()]
@@ -103,7 +140,8 @@ def split_subject_body(message: str) -> tuple[str, str]:
 @app.command()
 def test(model: str = typer.Option(MODEL, help="OpenRouter model id")):
     """
-    Print an AI summary of the currently STAGED changes (no commit)."""
+    Print an AI summary of the currently STAGED changes (no commit).
+    """
     diff = get_staged_diff()
     if not diff:
         typer.echo("No staged changes. Use `git add` first.")
@@ -122,11 +160,8 @@ def commit(
     add_all: bool = typer.Option(False, help="Run `git add -A` before summarizing."),
     showcase: bool = typer.Option(False, help="Show the AI message but do not commit."),
     allow_empty: bool = typer.Option(False, help="Allow empty commit if nothing staged."),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation and commit immediately.")
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation and commit immediately."),
 ):
-    """
-    Generate a commit message with AI and run `git commit -m` automatically.
-    """
     if add_all:
         subprocess.run(["git", "add", "-A"], check=False)
 
@@ -136,7 +171,7 @@ def commit(
         raise typer.Exit(code=1)
 
     prompt = (
-        "Generate a short high-quality git commit message for the following staged diff. "
+        "Generate a high-quality git commit message for the following staged diff. "
         "Use an imperative, concise subject (<=72 chars), then a blank line, then "
         "a very short, readable body grouped by file explaining WHAT and WHY. "
         "No code fences, no markdown headers.\n\n"
@@ -145,7 +180,6 @@ def commit(
     summary = summarize_with_openrouter(prompt, model)
     subject, body = split_subject_body(summary)
 
-    # Always show the message we’re about to use
     typer.echo("\n----- AI Commit Message -----\n")
     typer.echo(subject)
     if body:
@@ -156,19 +190,21 @@ def commit(
         typer.echo("Not committing.")
         raise typer.Exit()
 
+    #Confirm use of AI commit message
     if not yes:
         if not typer.confirm("Use this commit message to commit now?", default=True):
             typer.echo("Aborted. No commit made.")
             raise typer.Exit(code=1)
 
-    # Build git commit command
+    # Ask to store commit data to DB
+    want_store = typer.confirm("Also send this commit to the database?", default=False)
+
+    # Build and run `git commit`
     commit_cmd = ["git", "commit"]
     if allow_empty and not diff:
         commit_cmd.append("--allow-empty")
-
     commit_cmd += ["-m", subject]
     if body:
-        # Pass body as another -m so git treats it as the message body
         commit_cmd += ["-m", body]
 
     result = subprocess.run(commit_cmd, capture_output=True, text=True)
@@ -178,6 +214,37 @@ def commit(
         raise typer.Exit(code=result.returncode)
 
     typer.echo(result.stdout.strip())
+
+    # If storing: compute metadata, rate impact, and send
+    if want_store:
+        # get commit SHA
+        rev = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
+        commit_sha = rev.stdout.strip() if rev.returncode == 0 else ""
+
+        # Derive author (best-effort from git config)
+        author_name = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True).stdout.strip()
+        author_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True).stdout.strip()
+
+        # Try to grab repo slug (best-effort)
+        remote_url = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True).stdout.strip()
+
+        # Rate impact via OpenRouter
+        impact = rate_impact_with_openrouter(subject, body, diff, model)  # 'Low' | 'Medium' | 'High'
+
+        payload = {
+            "username": author_name or "unknown",
+            "email": author_email or "unknown",
+            "repository": remote_url or "",
+            "commit_id": commit_sha,
+            "summary": subject,
+            "body": body,
+            "impact": impact,              # Low / Medium / High
+            "staged_diff": diff,           # optional: remove if you don’t want to store raw diff
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+
+        send_commit_to_backend(payload)
+
 
 @app.command()
 def doc(
