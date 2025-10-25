@@ -1,0 +1,20 @@
+{
+  "name": "backend",
+  "version": "0.0.1",
+  "description": "testing",
+  "homepage": "https://github.com/Aaryan-Bidaye/GitGenie#readme",
+  "bugs": {
+    "url": "https://github.com/Aaryan-Bidaye/GitGenie/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aaryan-Bidaye/GitGenie.git"
+  },
+  "license": "MIT",
+  "author": "Tyler Ham",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
