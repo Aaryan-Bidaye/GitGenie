@@ -33,6 +33,19 @@ app.use(cors())
 console.log('hello world')
 //api calls go here
 
+app.get('/api/:repository', async (req, res) => {
+  try{
+    const { repository } = req.params
+    const CommitModel = getCommitModel(repository)
+    const commits = await CommitModel.find({});
+    res.json(commits);
+  }
+  catch (error) {
+    console.error(`Error fetching commits for repo ${repository}`, error)
+    res.status(500).json({ error: 'Internal server error', message: error.message })
+  }
+}) 
+
 // GET endpoint for api/:repository/:sha
 app.get('/api/:repository/:sha', async (req, res) => {
   try {
