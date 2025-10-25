@@ -162,71 +162,18 @@ def summarize_with_openrouter(prompt: str, model: str) -> str:
     data = resp.json()
     return data["choices"][0]["message"]["content"].strip()
 
-def _heuristic_impact_from_diff(diff: str) -> int:
-    """Fallback numeric estimate from diff size."""
-    if not diff:
-        return 1
-
-    added = diff.count("\n+")
-    removed = diff.count("\n-")
-    files = diff.count("\ndiff --git ")
-
-    score = (added + removed) // 50 + (files // 5) + 1
-    if score >= 9:
-        return 9
-    elif score >= 7:
-        return 7
-    elif score >= 4:
-        return 5
-    else:
-        return 2
-
-
-def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> int:
-    """
-    Returns an integer 1–10.
-    Falls back to a local heuristic if the API or regex fails.
-    """
+def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> str:
     prompt = (
         "You are assessing the impact of a code change for release notes.\n"
-        "Reply with a SINGLE INTEGER 1-10 and NOTHING ELSE.\n"
-        "Scale:\n"
+        "Given the commit subject, body, and diff, reply with a number from 1-10 only.\n"
         "8-10 = breaking changes, major new features, large refactors, security fixes.\n"
         "4-7  = feature improvements, behavior changes, notable bug fixes.\n"
         "1-3  = small fixes, docs, tests, formatting.\n\n"
         f"Subject: {subject}\n\nBody:\n{body or '(none)'}\n\nDIFF START\n{diff or '(empty)'}\nDIFF END"
     )
-
-    api_key = ensure_openrouter_key()
-    resp = requests.post(
-        OPENROUTER_API_URL,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost",
-            "X-Title": "git-summary-cli",
-        },
-        json={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "Return ONLY a single integer 1–10."},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.0,
-            "max_tokens": 5,
-        },
-        timeout=60,
-    )
-
-    if resp.status_code == 200:
-        text = resp.json()["choices"][0]["message"]["content"].strip()
-        match = re.search(r"\b(10|[1-9])\b", text)
-        if match:
-            #mypy-safe: group(1) always exists if match is truthy
-            return int(match.group(1))
-
-    # guaranteed fallback path returns an int
-    return _heuristic_impact_from_diff(diff)
+    result = summarize_with_openrouter(prompt, model).strip()
+    m = re.search(r"\b(10|[1-9])\b", result)
+    return m.group(1) if m else "Unknown"
 
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
