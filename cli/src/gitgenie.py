@@ -125,33 +125,46 @@ def get_staged_diff() -> str:
     ).stdout
     return diff
 
-def summarize_with_openrouter(prompt: str, model: str) -> str:
+def summarize_with_openrouter(prompt: str, model: str, expect_int: bool = False) -> str:
+    """
+    Sends a prompt to OpenRouter and returns:
+      - A string (normal commit message) by default
+      - A numeric string (e.g., "7") if expect_int=True
+    """
+
     api_key = ensure_openrouter_key()
+
+    # Adjust temperature and instructions for deterministic numeric replies
+    system_prompt = (
+        "You are a precise commit assistant. Produce a high-quality git commit "
+        "message with: (1) a concise, imperative subject (<=72 chars), then "
+        "(2) a blank line, (3) a brief body grouped by file explaining WHAT and WHY. "
+        "Avoid code fences. No markdown headers."
+    )
+
+    if expect_int:
+        system_prompt = (
+            "You are an evaluator that returns a single integer 1–10 only — "
+            "no words, no explanation. "
+            "The integer must represent the impact severity of the code change."
+        )
 
     resp = requests.post(
         OPENROUTER_API_URL,
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            # These are optional, but recommended by OpenRouter:
             "HTTP-Referer": "http://localhost",
             "X-Title": "git-summary-cli",
         },
         json={
             "model": model,
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a precise commit assistant. Produce a high-quality git commit "
-                        "message with: (1) a concise, imperative subject (<=72 chars), then "
-                        "(2) a blank line, (3) a brief body grouped by file explaining WHAT and WHY. "
-                        "Avoid code fences. No markdown headers."
-                    ),
-                },
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.2,
+            "temperature": 0.0 if expect_int else 0.2,
+            "max_tokens": 10 if expect_int else 300,
         },
         timeout=120,
     )
@@ -160,20 +173,31 @@ def summarize_with_openrouter(prompt: str, model: str) -> str:
         raise RuntimeError(f"OpenRouter error {resp.status_code}: {resp.text}")
 
     data = resp.json()
-    return data["choices"][0]["message"]["content"].strip()
+    output = data["choices"][0]["message"]["content"].strip()
+
+    # --- If integer expected, extract it safely ---
+    if expect_int:
+        import re
+        match = re.search(r"\b(10|[1-9])\b", output)
+        if match:
+            return match.group(1)  # Return as string (e.g. "7")
+        else:
+            return "1"  # fallback default
+
+    return output
 
 def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> str:
     prompt = (
-        "You are assessing the impact of a code change for release notes.\n"
-        "Given the commit subject, body, and diff, reply with a number from 1-10 only.\n"
-        "8-10 = breaking changes, major new features, large refactors, security fixes.\n"
-        "4-7  = feature improvements, behavior changes, notable bug fixes.\n"
-        "1-3  = small fixes, docs, tests, formatting.\n\n"
-        f"Subject: {subject}\n\nBody:\n{body or '(none)'}\n\nDIFF START\n{diff or '(empty)'}\nDIFF END"
+        "Given the commit subject, body, and diff, rate the impact of this change "
+        "on a scale of 1–10. Return only a number (no words).\n\n"
+        "8–10 = breaking changes or large features.\n"
+        "4–7 = moderate updates or bug fixes.\n"
+        "1–3 = minor edits, documentation, or formatting.\n\n"
+        f"Subject: {subject}\n\nBody:\n{body}\n\nDIFF START\n{diff}\nDIFF END"
     )
-    result = summarize_with_openrouter(prompt, model).strip()
-    m = re.search(r"\b(10|[1-9])\b", result)
-    return m.group(1) if m else "Unknown"
+
+    impact_str = summarize_with_openrouter(prompt, model, expect_int=True)
+    return impact_str  # "7" (string)
 
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
@@ -267,7 +291,7 @@ def int(
         author_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True).stdout.strip()
         remote_url = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True).stdout.strip()
 
-        impact = rate_impact_with_openrouter(subject, body, diff, model)
+        impact = int(rate_impact_with_openrouter(subject, body, diff, model))
 
         payload = {
             "username": author_name or "unknown",
