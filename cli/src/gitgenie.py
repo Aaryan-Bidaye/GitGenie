@@ -19,8 +19,20 @@ MODEL = "anthropic/claude-4.5-sonnet"
 def ensure_openrouter_key() -> str:
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        raise RuntimeError("Missing OPENROUTER_API_KEY in environment or .env file.")
+        api_key = input("Enter API Key: ")
+        create_env_api(api_key)
+        # return the key directly instead of raising
+        return api_key
     return api_key
+
+
+
+def create_env_api(api_key):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_path = os.path.join(script_dir, ".env")
+
+    with open(env_path, "w") as f:
+        f.write(f"OPENROUTER_API_KEY={api_key}\n")
 
 def ensure_dir(p: Union[str, Path]) -> Path:
     path = Path(p)
@@ -51,9 +63,7 @@ def get_staged_diff() -> str:
     return diff
 
 def summarize_with_openrouter(prompt: str, model: str) -> str:
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        raise RuntimeError("Missing OPENROUTER_API_KEY in environment or .env file.")
+    api_key = ensure_openrouter_key()
 
     resp = requests.post(
         OPENROUTER_API_URL,
