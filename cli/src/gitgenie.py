@@ -122,6 +122,7 @@ def commit(
     add_all: bool = typer.Option(False, help="Run `git add -A` before summarizing."),
     showcase: bool = typer.Option(False, help="Show the AI message but do not commit."),
     allow_empty: bool = typer.Option(False, help="Allow empty commit if nothing staged."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation and commit immediately.")
 ):
     """
     Generate a commit message with AI and run `git commit -m` automatically.
@@ -154,6 +155,11 @@ def commit(
     if showcase:
         typer.echo("Not committing.")
         raise typer.Exit()
+
+    if not yes:
+        if not typer.confirm("Use this commit message to commit now?", default=True):
+            typer.echo("Aborted. No commit made.")
+            raise typer.Exit(code=1)
 
     # Build git commit command
     commit_cmd = ["git", "commit"]
