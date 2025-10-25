@@ -7,6 +7,7 @@ import subprocess
 import requests
 import typer
 from typing import Union
+from pymongo import MongoClient, errors
 
 load_dotenv()
 
@@ -15,6 +16,51 @@ app = typer.Typer(help="AI-powered git commit CLI")
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-4.5-sonnet"
+
+def get_mongo():
+    """
+    Returns (db, collection) using env: and git config --get remote.origin.url
+
+    """
+    uri = os.getenv("MONGODB_URI", "").strip()
+    if not uri:
+        raise RuntimeError("MONGODB_URI not set in .env")
+
+
+    client = MongoClient(uri, ServerSelectionTimeoutMS=5000, socketTimeoutMS=10000)
+    client.admin.command("ping")
+
+    dbname = os.getenv("MONGODB_DBNAME", "").strip()
+    db = client[dbname]
+
+    try:
+        username = subprocess.run(
+            ["git", "config", "user.name"],
+            capture_output=True, text=True
+        ).stdout.strip() or "unkown"
+
+        remote_url = subprocess.run(
+            ["git", "config", "--get", "remote.origin.url"],
+            capture_output=True, text=True
+        ).stdout.strip()
+
+        repo_name = os.path.splitext(os.path.basename(remote_url))[0] if remote_url else "unkown_repo"
+
+        coll_name = f"{username}/{repo_name}"
+    except Exception:
+        coll_name = "unkown_repo"
+
+    coll = db[coll_name]
+
+    try:
+        coll.create_index([("commit_id", 1)], unique=True, name="uniq_commit")
+        coll.create_index([("created_at", -1)], name="by_created_desc")
+    except errors.PyMongoError:
+        pass
+
+    return db, coll
+
+
 
 def ensure_openrouter_key() -> str:
     api_key = os.getenv("OPENROUTER_API_KEY")
@@ -113,7 +159,7 @@ def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) 
     )
     result = summarize_with_openrouter(prompt, model).strip()
     norm = result.split()[0].capitalize()
-    return norm if norm in {"1","2","3","4","5","6","7", "9", "10"} else "Unknown"
+    return norm if norm in {"1","2","3","4","5","6","7","8","9", "10"} else "Unknown"
 
 def send_commit_to_backend(payload: dict) -> None:
     """
