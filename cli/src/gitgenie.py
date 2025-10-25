@@ -37,7 +37,6 @@ def sanitize_heading(text: str) -> str:
     return re.sub(r"[#\s]+", " ", first).strip()
 
 def get_staged_diff() -> str:
-    # Fast check: are there staged changes?
     check = subprocess.run(["git", "diff", "--cached", "--quiet"])
     if check.returncode == 0:
         return ""
