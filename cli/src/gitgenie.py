@@ -162,7 +162,7 @@ def summarize_with_openrouter(prompt: str, model: str) -> str:
     data = resp.json()
     return data["choices"][0]["message"]["content"].strip()
 
-def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> int:
+def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> str:
     prompt = (
         "You are assessing the impact of a code change for release notes.\n"
         "Given the commit subject, body, and diff, reply with a number from 1-10 only.\n"
@@ -172,17 +172,8 @@ def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) 
         f"Subject: {subject}\n\nBody:\n{body or '(none)'}\n\nDIFF START\n{diff or '(empty)'}\nDIFF END"
     )
     result = summarize_with_openrouter(prompt, model).strip()
-    m: re.Match[str] | None = re.search(r"\b(10|[1-9])\b", result)
-    if m is not None:
-        number_str = m.group(1)
-        try:
-            number_int = int(number_str)
-            return number_int  # ✅ always an int here
-        except (ValueError, TypeError):
-            pass  # fall through if conversion fails
-
-    # fallback if no valid number found
-    return 1  # ✅ ensures an int is always returned
+    m = re.search(r"\b(10|[1-9])\b", result)
+    return m.group(1) if m else "Unknown"
 
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
