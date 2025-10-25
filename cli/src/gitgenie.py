@@ -267,7 +267,7 @@ def int(
         author_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True).stdout.strip()
         remote_url = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True).stdout.strip()
 
-        impact = rate_impact_with_openrouter(subject, body, diff, model)
+        impact = int(rate_impact_with_openrouter(subject, body, diff, model))
 
         payload = {
             "username": author_name or "unknown",
