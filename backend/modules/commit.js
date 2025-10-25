@@ -16,14 +16,15 @@ mongoose.connect(url)
 
 mongoose.set('strictQuery',false)
 
-mongoose.connect(url)
-
-const commitInfo = new mongoose.Schema({
+const commitSchema = new mongoose.Schema({
   username: {
     type: String,
   },
-  commit_id: {
+  sha: {
     type: String,
+  },
+  date: {
+    type:String
   },
   summary: {
     type:String,
@@ -34,7 +35,7 @@ const commitInfo = new mongoose.Schema({
 
 })
 
-commitInfo.set('toJSON', {
+commitSchema.set('toJSON', {
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString()
     delete returnedObject._id
@@ -42,5 +43,15 @@ commitInfo.set('toJSON', {
   }
 })
 
-module.exports = mongoose.model('Person', phoneBookEntry)
+// Helper function to get a model for a specific collection
+function getCommitModel(collectionName) {
+  // reuse existing model if already compiled
+  if (mongoose.models[collectionName]) {
+    return mongoose.models[collectionName]
+  }
+  // otherwise, create a new one bound to that collection
+  return mongoose.model('Commit', commitSchema, collectionName)
+}
+
+module.exports = { getCommitModel }
 //mongoDB setup
