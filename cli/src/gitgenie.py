@@ -136,9 +136,9 @@ def commit(
         raise typer.Exit(code=1)
 
     prompt = (
-        "Generate a high-quality git commit message for the following staged diff. "
+        "Generate a short high-quality git commit message for the following staged diff. "
         "Use an imperative, concise subject (<=72 chars), then a blank line, then "
-        "a short, readable body grouped by file explaining WHAT and WHY. "
+        "a very short, readable body grouped by file explaining WHAT and WHY. "
         "No code fences, no markdown headers.\n\n"
         f"{diff if diff else '(empty diff)'}"
     )
