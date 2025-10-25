@@ -101,19 +101,19 @@ def summarize_with_openrouter(prompt: str, model: str) -> str:
 
 def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> str:
     """
-    Ask the LLM to classify the impact as Low / Medium / High.
+    Ask the LLM to classify the impact as a number
     """
     prompt = (
         "You are assessing the impact of a code change for release notes.\n"
-        "Given the commit subject, body, and diff, reply with exactly ONE word: Low, Medium, or High.\n"
-        "High = breaking changes, major new features, large refactors, security fixes.\n"
-        "Medium = feature improvements, behavior changes, notable bug fixes.\n"
-        "Low = small fixes, docs, tests, formatting.\n\n"
+        "Given the commit subject, body, and diff, reply with a number from 1-10\n" 
+        "8-10= breaking changes, major new features, large refactors, security fixes.\n"
+        "4-7 = feature improvements, behavior changes, notable bug fixes.\n"
+        "1-3 = small fixes, docs, tests, formatting.\n\n"
         f"Subject: {subject}\n\nBody:\n{body or '(none)'}\n\nDIFF START\n{diff or '(empty)'}\nDIFF END"
     )
     result = summarize_with_openrouter(prompt, model).strip()
     norm = result.split()[0].capitalize()
-    return norm if norm in {"Low", "Medium", "High"} else "Low"
+    return norm if norm in {"1","2","3","4","5","6","7", "9", "10"} else "Unknown"
 
 def send_commit_to_backend(payload: dict) -> None:
     """
@@ -148,26 +148,9 @@ def split_subject_body(message: str) -> tuple[str, str]:
     return subject, body
 
 @app.command()
-def test(model: str = typer.Option(MODEL, help="OpenRouter model id")):
-    """
-    Print an AI summary of the currently STAGED changes (no commit).
-    """
-    diff = get_staged_diff()
-    if not diff:
-        typer.echo("No staged changes. Use `git add` first.")
-        raise typer.Exit(code=1)
-
-    prompt = (
-        "Summarize this staged git diff. Provide a commit-style message:\n\n"
-        f"{diff}"
-    )
-    summary = summarize_with_openrouter(prompt, model)
-    typer.echo(summary)
-
-@app.command()
-def commit(
+def int(
     model: str = typer.Option(MODEL, help="OpenRouter model id"),
-    add_all: bool = typer.Option(False, help="Run `git add -A` before summarizing."),
+    add_all: bool = typer.Option(True, help="Run `git add -A` before summarizing."),
     showcase: bool = typer.Option(False, help="Show the AI message but do not commit."),
     allow_empty: bool = typer.Option(False, help="Allow empty commit if nothing staged."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation and commit immediately."),
@@ -200,16 +183,12 @@ def commit(
         typer.echo("Not committing.")
         raise typer.Exit()
 
-    #Confirm use of AI commit message
     if not yes:
         if not typer.confirm("Use this commit message to commit now?", default=True):
             typer.echo("Aborted. No commit made.")
             raise typer.Exit(code=1)
 
-    # Ask to store commit data to DB
-    want_store = typer.confirm("Also send this commit to the database?", default=False)
-
-    # Build and run `git commit`
+    # Build and run git commit
     commit_cmd = ["git", "commit"]
     if allow_empty and not diff:
         commit_cmd.append("--allow-empty")
@@ -225,21 +204,30 @@ def commit(
 
     typer.echo(result.stdout.strip())
 
-    # If storing: compute metadata, rate impact, and send
-    if want_store:
-        # get commit SHA
+    # Ask user whether to push changes
+    push_confirm = typer.confirm("Push this commit to the remote repository?", default=True)
+    pushed = False
+    if push_confirm:
+        typer.echo("Pushing changes...")
+        push_result = subprocess.run(["git", "push"], capture_output=True, text=True)
+        if push_result.returncode == 0:
+            typer.echo(push_result.stdout.strip())
+            pushed = True
+        else:
+            typer.echo("Push failed:")
+            typer.echo(push_result.stderr)
+    else:
+        typer.echo("Skipped push.")
+
+    # Ask to store commit data to DB (only if pushed)
+    if pushed and typer.confirm("Also send this commit to the database?", default=False):
         rev = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
         commit_sha = rev.stdout.strip() if rev.returncode == 0 else ""
-
-        # Derive author (best-effort from git config)
         author_name = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True).stdout.strip()
         author_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True).stdout.strip()
-
-        # Try to grab repo slug (best-effort)
         remote_url = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True).stdout.strip()
 
-        # Rate impact via OpenRouter
-        impact = rate_impact_with_openrouter(subject, body, diff, model)  # 'Low' | 'Medium' | 'High'
+        impact = rate_impact_with_openrouter(subject, body, diff, model)
 
         payload = {
             "username": author_name or "unknown",
@@ -248,12 +236,13 @@ def commit(
             "commit_id": commit_sha,
             "summary": subject,
             "body": body,
-            "impact": impact,              # Low / Medium / High
-            "staged_diff": diff,           # optional: remove if you don’t want to store raw diff
+            "impact": impact,
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
 
         send_commit_to_backend(payload)
+    elif not pushed:
+        typer.echo("Commit not pushed, skipping backend upload.")
 
 
 @app.command()
