@@ -17,6 +17,19 @@ BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-4.5-sonnet"
 
+MODEL_ALIASES = {
+    "4": "anthropic/claude-4.5-sonnet",
+    "6": "anthropic/claude-4.5-sonnet",  # map your shorthand '6' to a real model
+    "claude": "anthropic/claude-4.5-sonnet",
+    "claude-sonnet": "anthropic/claude-4.5-sonnet",
+    "sonnet": "anthropic/claude-4.5-sonnet",
+}
+
+def normalize_model(m: str | None) -> str:
+    if not m:
+        return MODEL
+    key = m.strip().lower()
+    return MODEL_ALIASES.get(key, m.strip())
 
 def send_commit_to_mongo(payload: dict) -> None:
     try:
@@ -133,6 +146,7 @@ def summarize_with_openrouter(prompt: str, model: str, expect_int: bool = False)
     """
 
     api_key = ensure_openrouter_key()
+    model = normalize_model(model)
 
     # Adjust temperature and instructions for deterministic numeric replies
     system_prompt = (
