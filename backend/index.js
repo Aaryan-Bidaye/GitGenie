@@ -62,6 +62,7 @@ app.get('/api/:repository/:sha', async (req, res) => {
         username: commit.username,
         sha: commit.sha,
         summary: commit.summary,
+        body: commit.body,
         impact: commit.impact,
       },
     })
@@ -80,6 +81,7 @@ app.post('/api', async (req, res) => {
     username: body.username,
     sha: body.sha,
     date: body.date,
+    body: body.body,
     summary: body.summary,
     impact: body.impact,
   })

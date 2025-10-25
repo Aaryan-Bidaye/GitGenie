@@ -26,6 +26,9 @@ const commitSchema = new mongoose.Schema({
   date: {
     type:String
   },
+  body:{
+    type:String,
+  },
   summary: {
     type:String,
   },
