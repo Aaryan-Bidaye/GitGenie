@@ -17,6 +17,23 @@ BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-4.5-sonnet"
 
+
+def send_commit_to_mongo(payload: dict) -> None:
+    try:
+        _, coll = get_mongo()
+        # upsert by (repository, commit_id) so re-runs don’t duplicate
+        coll.update_one(
+            {
+                "repository": payload.get("repository", ""),
+                "commit_id": payload.get("commit_id", "")
+            },
+            {"$set": payload},
+            upsert=True,
+        )
+        typer.echo("Saved to Mongo.")
+    except Exception as e:
+        typer.echo(f"Mongo save failed: {e}")
+
 def get_mongo():
     """
     Returns (db, collection) using env: and git config --get remote.origin.url
@@ -146,40 +163,17 @@ def summarize_with_openrouter(prompt: str, model: str) -> str:
     return data["choices"][0]["message"]["content"].strip()
 
 def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> str:
-    """
-    Ask the LLM to classify the impact as a number
-    """
     prompt = (
         "You are assessing the impact of a code change for release notes.\n"
-        "Given the commit subject, body, and diff, reply with a number from 1-10\n" 
-        "8-10= breaking changes, major new features, large refactors, security fixes.\n"
-        "4-7 = feature improvements, behavior changes, notable bug fixes.\n"
-        "1-3 = small fixes, docs, tests, formatting.\n\n"
+        "Given the commit subject, body, and diff, reply with a number from 1-10 only.\n"
+        "8-10 = breaking changes, major new features, large refactors, security fixes.\n"
+        "4-7  = feature improvements, behavior changes, notable bug fixes.\n"
+        "1-3  = small fixes, docs, tests, formatting.\n\n"
         f"Subject: {subject}\n\nBody:\n{body or '(none)'}\n\nDIFF START\n{diff or '(empty)'}\nDIFF END"
     )
     result = summarize_with_openrouter(prompt, model).strip()
-    norm = result.split()[0].capitalize()
-    return norm if norm in {"1","2","3","4","5","6","7","8","9", "10"} else "Unknown"
-
-def send_commit_to_backend(payload: dict) -> None:
-    """
-    Placeholder sender. If BACKEND_API_URL is unset, just print the JSON.
-    Otherwise send a POST to your backend endpoint.
-    """
-    import json
-    if not BACKEND_API_URL:
-        typer.echo("\n(No BACKEND_API_URL set — showing payload instead):")
-        typer.echo(json.dumps(payload, indent=2))
-        return
-
-    try:
-        resp = requests.post(BACKEND_API_URL, json=payload, timeout=20)
-        if resp.status_code // 100 != 2:
-            typer.echo(f"Backend responded {resp.status_code}: {resp.text}")
-        else:
-            typer.echo("Commit data sent to backend.")
-    except Exception as e:
-        typer.echo(f"Failed to send to backend: {e}")
+    m = re.search(r"\b(10|[1-9])\b", result)
+    return m.group(1) if m else "Unknown"
 
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
@@ -277,16 +271,18 @@ def int(
 
         payload = {
             "username": author_name or "unknown",
-            "email": author_email or "unknown",
-            "repository": remote_url or "",
+            # "email": author_email or "unknown",
+            #"repository": remote_url or "",
             "commit_id": commit_sha,
             "summary": subject,
             "body": body,
             "impact": impact,
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+        
+        send_commit_to_mongo(payload)
 
-        send_commit_to_backend(payload)
+
     elif not pushed:
         typer.echo("Commit not pushed, skipping backend upload.")
 
