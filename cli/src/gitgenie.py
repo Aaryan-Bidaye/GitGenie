@@ -75,7 +75,7 @@ def get_mongo():
     client = MongoClient(uri, ServerSelectionTimeoutMS=5000, socketTimeoutMS=10000)
     client.admin.command("ping")
 
-    dbname = os.getenv("MONGODB_DBNAME", "").strip()
+    dbname = "repositories" 
     db = client[dbname]
 
     try:
