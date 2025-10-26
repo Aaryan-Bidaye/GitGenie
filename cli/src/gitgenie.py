@@ -222,7 +222,7 @@ def code_qual(ai_impact):
 
     mean = plines/10
 
-    r = clines / mean
+    r = clines / mean if mean else 0
 
     im = r/(r+1)
     ai_num = ai_impact/10
