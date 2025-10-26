@@ -82,7 +82,7 @@ function Dashboard() {
     return (
         <div className="page-root">
             <header className="topbar">
-                <div className="brand" onClick={()=>console.log("Home")}>GitGenie</div>
+                <div className="brand" onClick={()=>navigate('/')}>GitGenie</div>
             </header>
             <h1>Astronomy Data Repo</h1>
             <h3>Owner: SmartyMcSmartyPants <b>{repo}</b></h3>
