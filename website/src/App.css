@@ -581,3 +581,177 @@ form.search-form {
 .read-the-docs {
   color: #888;
 }
+
+/* Page root styling moved from inline styles in URL.jsx for global reuse */
+.page-root {
+  min-height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  padding-top: clamp(20vh, 10vw, 20px);
+  margin: 0;
+  max-width: none;
+}
+
+/* Moved styles from URL.jsx and optimized for resize performance */
+html, body {
+  height: 100%;
+  margin: 0;
+  background-color: #071027; 
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px auto 32px auto;
+}
+
+.brand {
+  font-weight: 700;
+  color: #7b52ff;
+  font-size: 36px;
+  letter-spacing: 1.5px;
+}
+
+.center-wrap{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.left-box{
+  display: flex;
+  flex-direction: column;
+  align-items: Left;
+}
+
+/* Reduced blur radius and removed inset shadow to improve paint performance */
+.card{
+  width: 100%;
+  max-width: 800px;
+  border-radius: 14px;
+  padding: 42px 48px;
+  background: rgba(255,255,255,0.02);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.03);
+  /* Promote to its own layer to minimize repaint cost during transforms/resizes */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+h1{
+  font-size: 30px;
+  margin: 0 0 12px 0;
+  color: #e7f1ff;
+}
+
+h3{
+  margin: -5px 0 5px 0;
+}
+
+.subtitle{ color: #a9b6cf; margin:18px }
+
+form.search-form{
+  display: flex;
+  flex-wrap: wrap; /* allow items to wrap to next line */
+  gap: 10px;
+  align-items: center;
+}
+
+.url-input{
+  flex: 1 1 auto;
+  min-width: 0; /* allow shrinking inside flex container */
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  color: #e7f1ff;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: 16px;
+  outline: none;
+}
+.url-input::placeholder{ color: #a9b6cf }
+
+
+@media (max-width:640px){
+  .card{ padding:28px }
+  h1{ font-size:24px }
+  .topbar{ padding:0 12px }
+}
+
+
+.hLists{
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  padding: 0;
+  margin: 20px;
+}
+
+
+/* Leaderboard styles */
+.leaderboard{ 
+  list-style: none; 
+  padding: 0; 
+  margin: 20px; 
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+}
+.leader-card{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 260px;
+}
+.leader-rank{ font-weight: 700; font-size: 30px; color:#e7f1ff; min-width: 40px; text-align: center; }
+.pfp{ border-radius: 50%; width: 72px; height: 72px; object-fit: cover; border: 1.8px solid grey; }
+.leader-info{ 
+  display: flex; 
+  flex-direction: column; 
+  text-align: left; 
+  font-size: 20px;
+  font-weight: 700;
+}
+.leader-score{ color:#a9b6cf; font-size: 14px; }
+
+.small-user{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+}
+
+.pfp-small{
+  width: 25px;
+  height: 25px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 50%;
+}
+
+.name:hover{
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+table{
+  width: 100%;
+  border-collapse: collapse;
+  color: #e7f1ff;
+}
+table th, table td{
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 10px 12px;
+  text-align: left;
+}
+table thead th{
+  background: rgba(255,255,255,0.06);
+}
+
