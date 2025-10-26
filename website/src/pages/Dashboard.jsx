@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 // import axios from 'axios'
 import pfp from '../assets/pfp.png'
@@ -11,6 +12,7 @@ const baseURL = '/api'
 
 
 function Dashboard() {
+    const navigate = useNavigate();
     const [topUsers, setTopUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [users, setUsers] = useState([])
@@ -96,7 +98,7 @@ function Dashboard() {
                             <div className="leader-rank">#{i + 1}</div>
                             <img className="pfp" src={pfp} alt={u.name} />
                             <div className="leader-info">
-                                <div className="name">{u.name}</div>
+                                <div className="name" onClick={()=>navigate('/user', {state: {user: u.name}})}> {u.name} </div>
                                 <div className="leader-score">Score: {u.score}</div>
                             </div>
                         </li>
@@ -115,7 +117,7 @@ function Dashboard() {
                             <tr key={u.name}>
                                 <td className="small-user">
                                     <img className="pfp-small" src={pfp} alt={u.name} />
-                                    <text className="name"> {u.name} </text>
+                                    <p className="name" onClick={()=>navigate('/user', {state: {user: u.name}})}> {u.name} </p>
                                 </td>
                                 <td>{u.score}</td>
                             </tr>
