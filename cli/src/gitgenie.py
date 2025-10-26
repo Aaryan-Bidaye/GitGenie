@@ -67,7 +67,7 @@ def get_mongo():
     Returns (db, collection) using env: and git config --get remote.origin.url
 
     """
-    uri = os.getenv("MONGODB_URI", "").strip()
+    uri = MONGODB_URI 
     if not uri:
         raise RuntimeError("MONGODB_URI not set in .env")
 
