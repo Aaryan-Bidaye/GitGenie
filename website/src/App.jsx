@@ -2,7 +2,7 @@
 
 
 import { Routes, Route, Link } from 'react-router-dom'
-import './App.scss'
+import './App.css'
 import Search from './pages/URL'
 import Dashboard from './pages/Dashboard'
 
