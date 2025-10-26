@@ -7,22 +7,32 @@ import pfp from '../assets/pfp.png'
 function UserData(){
     const navigate = useNavigate();
     const {user} = useLocation().state;
-    const barChartSrc = 'https://placehold.co/640x220/111214/7b52ff?text=Bar+Chart'
-    const gaugeSrc = 'https://placehold.co/280x160/111214/7b52ff?text=Gauge'
+    const score = 128;
+    const commits = 400;
+    const barChartSrc = ''
 
     return(
         <div className="page-root">
-            <header className="topbar">
-                <div className="brand" onClick={()=>navigate('/')}>GitGenie</div>
-            </header>
+			<div className="bg-gradient"></div>
+			<div className="bg-orbs"></div>
+
+			<header className="topbar">
+				<div className="brand">
+					<span className="brand-git">Git</span>
+					<span className="brand-genie">Scribe</span>
+					<div className="brand-sparkle">✨</div>
+				</div>
+			</header>
             <h1>{user}</h1>
 
             <div className="center-wrap">
-                <div className="card">
+                <div className="card card-row">
                     <div className="left-box">
-                        <img className="pfp" src={pfp} alt={user} />
-                        <h2>{user}</h2>
-                        <p>Score: {user.score}</p>
+                        <img className="pfp-large" src={pfp} alt={user} />
+                        <h2>Score: {score}<br/>Commits: {commits}</h2>
+                    </div>
+                    <div className="right-box">
+                        <img className="bar-chart" src={barChartSrc} alt="Bar Chart" />
                     </div>
                 </div>
             </div>
