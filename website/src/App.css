@@ -674,18 +674,6 @@ form.search-form{
 }
 .url-input::placeholder{ color: #a9b6cf }
 
-.btn-card{
-  background: #7b52ff;
-  color: #e7f1ff;
-  border: none;
-  padding: 12px 18px;
-  font-weight:600;
-  border-radius: 14px;
-  cursor:pointer;
-  flex: 0 0 100%; /* make the button take full width on its own line */
-  justify-self: center;
-  text-align: center;
-}
 
 @media (max-width:640px){
   .card{ padding:28px }
