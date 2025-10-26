@@ -90,7 +90,7 @@ html, body {
 /* Reduced blur radius and removed inset shadow to improve paint performance */
 .card{
   width: 100%;
-  max-width: 980px;
+  max-width: 800px;
   border-radius: 14px;
   padding: 42px 48px;
   background: rgba(255,255,255,0.02);
@@ -109,10 +109,16 @@ h1{
 
 .subtitle{ color: #a9b6cf; margin:18px }
 
-form.search-form{ display:flex; gap: 10px; align-items:center }
+form.search-form{
+  display: flex;
+  flex-wrap: wrap; /* allow items to wrap to next line */
+  gap: 10px;
+  align-items: center;
+}
 
 .url-input{
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0; /* allow shrinking inside flex container */
   background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.05);
   color: #e7f1ff;
@@ -121,7 +127,6 @@ form.search-form{ display:flex; gap: 10px; align-items:center }
   font-size: 16px;
   outline: none;
 }
-
 .url-input::placeholder{ color: #a9b6cf }
 
 .btn-card{
@@ -132,6 +137,9 @@ form.search-form{ display:flex; gap: 10px; align-items:center }
   font-weight:600;
   border-radius: 14px;
   cursor:pointer;
+  flex: 0 0 100%; /* make the button take full width on its own line */
+  justify-self: center;
+  text-align: center;
 }
 
 @media (max-width:640px){
