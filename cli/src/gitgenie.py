@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 import os
 import time
 import re
@@ -9,35 +8,25 @@ import typer
 from typing import Union
 from pymongo import MongoClient, errors
 
-load_dotenv()
 
 app = typer.Typer(help="AI-powered git commit CLI")
 from pymongo import MongoClient
 
 #connection string
 
-def ensure_openrouter_key() -> str:
-    from pymongo import MongoClient
-
+def ensure_anthropic_key() -> str:
+    # same Mongo doc, still reading field "key"
     uri = "mongodb+srv://tester:calhacks@maincluster.d7eonc4.mongodb.net/SUPER_SECRET"
     client = MongoClient(uri)
     db = client["SUPER_SECRET"]
     coll = db["keys"]
 
-    # Try to fetch the first document
     docu = coll.find_one()
-    if not docu:
-        print("No document found in the 'keys' collection.")
-        api_key = input("Enter API Key: ")
+    if not docu or not docu.get("key"):
+        print("No Anthropic API key found in Mongo.")
+        api_key = input("Enter Anthropic API Key: ").strip()
         return api_key
-
-    # Try to extract 'key' from document
-    api_key = docu.get("key")
-    if not api_key:
-        print("Document exists but missing 'key' field.")
-        api_key = input("Enter API Key: ")
-
-    return api_key
+    return docu["key"]
 
 # get the field named 'api_key'
 
@@ -142,55 +131,52 @@ def get_staged_diff() -> str:
     ).stdout
     return diff
 
-def summarize_with_openrouter(prompt: str, model: str) -> str:
-    api_key = ensure_openrouter_key()
+ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_VERSION = "2023-06-01"
+MODEL = "claude-sonnet-4-5"  # or a pinned date variant
 
-    resp = requests.post(
-        OPENROUTER_API_URL,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            # These are optional, but recommended by OpenRouter:
-            "HTTP-Referer": "http://localhost",
-            "X-Title": "git-summary-cli",
-        },
-        json={
-            "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a precise commit assistant. Produce a high-quality git commit "
-                         "message with: (1) a concise, imperative subject (<=72 chars), then "
-                        "(2) a blank line, (3) a brief body grouped by file explaining WHAT and WHY. "
-                        "Avoid code fences. No markdown headers."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.2,
-        },
-        timeout=120,
-    )
-
+def summarize_with_anthropic(prompt: str, model: str) -> tuple[str, str, int]:
+    api_key = ensure_anthropic_key()
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "content-type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "max_tokens": 800,
+        "temperature": 0.2,
+        "system": (
+            "You are a precise commit assistant. Return only a compact JSON object "
+            'like {"rating": 7, "subject": "...", "body": "..."}.\n'
+            "Rules:\n"
+            "- rating: integer 1..10 only\n"
+            "- subject: <=72 chars, imperative mood\n"
+            "- body: short, grouped by file, WHAT and WHY\n"
+            "No markdown, no extra text."
+        ),
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    resp = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=120)
     if resp.status_code != 200:
-        raise RuntimeError(f"OpenRouter error {resp.status_code}: {resp.text}")
+        raise RuntimeError(f"Anthropic error {resp.status_code}: {resp.text}")
 
     data = resp.json()
-    return data["choices"][0]["message"]["content"].strip()
+    text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text").strip()
 
-def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) -> str:
-    prompt = (
-        "You are assessing the impact of a code change for release notes.\n"
-        "Given the commit subject, body, and diff, reply with a number from 1-10 only.\n"
-        "8-10 = breaking changes, major new features, large refactors, security fixes.\n"
-        "4-7  = feature improvements, behavior changes, notable bug fixes.\n"
-        "1-3  = small fixes, docs, tests, formatting.\n\n"
-        f"Subject: {subject}\n\nBody:\n{body or '(none)'}\n\nDIFF START\n{diff or '(empty)'}\nDIFF END"
-    )
-    result = summarize_with_openrouter(prompt, model).strip()
-    m = re.search(r"\b(10|[1-9])\b", result)
-    return m.group(1) if m else "Unknown"
+    # Strict JSON parse with fallback
+    import json, re
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError:
+        s = text[text.find("{"): text.rfind("}")+1]
+        obj = json.loads(s)
+
+    rating = int(obj.get("rating", 5))
+    rating = 1 if rating < 1 else 10 if rating > 10 else rating
+    subject = (obj.get("subject") or "chore: update").strip()[:72]
+    body = (obj.get("body") or "").strip()
+    return subject, body, rating
 
 def code_qual(ai_impact):
 
@@ -245,7 +231,7 @@ def split_subject_body(message: str) -> tuple[str, str]:
 
 @app.command()
 def integrate(
-    model: str = typer.Option(MODEL, help="OpenRouter model id"),
+    model: str = typer.Option(MODEL, help="Anthropic model id"),
     add_all: bool = typer.Option(True, help="Run `git add -A` before summarizing."),
     showcase: bool = typer.Option(False, help="Show the AI message but do not commit."),
     allow_empty: bool = typer.Option(False, help="Allow empty commit if nothing staged."),
@@ -266,8 +252,8 @@ def integrate(
         "No code fences, no markdown headers.\n\n"
         f"{diff if diff else '(empty diff)'}"
     )
-    summary = summarize_with_openrouter(prompt, model)
-    subject, body = split_subject_body(summary)
+    summary_subject, summary_body, ai_impact = summarize_with_anthropic(prompt, model)
+    subject, body = split_subject_body(summary_subject + ("\n\n" + summary_body if summary_body else ""))
 
     typer.echo("\n----- AI Commit Message -----\n")
     typer.echo(subject)
@@ -323,7 +309,6 @@ def integrate(
         author_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True).stdout.strip()
         remote_url = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True).stdout.strip()
 
-        ai_impact = int(rate_impact_with_openrouter(subject, body, diff, model))
         impact = code_qual(ai_impact=ai_impact)
         payload = {
             "username": author_name or "unknown",
@@ -384,7 +369,7 @@ def doc(
     )
 
     typer.echo("Generating docs from staged diff...")
-    md = summarize_with_openrouter(docs_prompt, model)
+    md =summarize_with_anthropic(docs_prompt, model)
 
     # Prepare paths
     changes_dir = ensure_dir("docs/changes")
