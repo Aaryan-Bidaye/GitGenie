@@ -625,7 +625,7 @@ html, body {
 .left-box{
   display: flex;
   flex-direction: column;
-  align-items: Left;
+  align-items: flex-start;
 }
 
 /* Reduced blur radius and removed inset shadow to improve paint performance */

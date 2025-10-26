@@ -2,14 +2,13 @@ import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import pfp from '../assets/pfp.png'
 
 function UserData(){
     const navigate = useNavigate();
-    const {user} = useLocation().state;
-    const score = 128;
-    const commits = 400;
-    const barChartSrc = ''
+    const location = useLocation()
+    const { user, commits,pfp, score } = location.state || {}
+    console.log(pfp)
+    console.log(commits)
 
     return(
         <div className="page-root">
@@ -28,13 +27,27 @@ function UserData(){
             <div className="center-wrap">
                 <div className="card card-row">
                     <div className="left-box">
-                        <img className="pfp-large" src={pfp} alt={user} />
-                        <h2>Score: {score}<br/>Commits: {commits}</h2>
+                        <img className="pfp" src={pfp} alt={user} />
+                        <h2>Score: {score}<br/></h2>
                     </div>
-                    <div className="right-box">
-                        <img className="bar-chart" src={barChartSrc} alt="Bar Chart" />
-                    </div>
+                <div className = "right-box">
+                    <h3>Recent Commits</h3>
+                    <ul className="commit-list">
+							{commits && commits.length > 0 ? (
+								commits.map((commit, index) => (
+									<li key={commit.sha || index} className="commit-item">
+										<h3 className="commit-msg">{commit.summary || 'No message'}</h3>
+                                        <p className="commit-msg">{commit.body || 'No message'}</p>
+										<p className="commit-sha">{commit.sha?.slice(0, 7)}</p>
+									</li>
+								))
+							) : (
+								<p>No commits available.</p>
+							)}
+						</ul>
                 </div>
+                </div>
+                
             </div>
                         
         </div>

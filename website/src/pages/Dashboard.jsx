@@ -12,6 +12,7 @@ function Dashboard() {
 
   const [topUsers, setTopUsers] = useState([])
   const [users, setUsers] = useState([])
+  const [userCommits, setUserCommits] = useState({})  
   const [userPFPs, setUserPFPs] = useState(new Map())
   const [loading, setLoading] = useState(true)
 
@@ -24,6 +25,7 @@ function Dashboard() {
         const commits = response.data
         const userMap = new Map()
         const pfpMap = new Map()
+        const commitMap = {} 
 
         for (const c of commits) {
           // accumulate user scores
@@ -31,18 +33,32 @@ function Dashboard() {
           prev.score += c.impact
           userMap.set(c.username, prev)
 
-          // store avatar
+          // store avatar (once)
           if (!pfpMap.has(c.username)) {
             pfpMap.set(c.username, c.pfp || defaultPfp)
           }
+
+          // group commits by username
+          if (!commitMap[c.username]) {
+            commitMap[c.username] = []
+          }
+          commitMap[c.username].push({
+            sha: c.sha,
+            summary: c.summary,
+            body: c.body,
+            impact: c.impact,
+            date: c.date,
+          })
         }
 
         const userArray = Array.from(userMap.values())
         const top = [...userArray].sort((a, b) => b.score - a.score)
 
+        // update all state at once
         setUsers(userArray)
         setTopUsers(top)
         setUserPFPs(pfpMap)
+        setUserCommits(commitMap)
       })
       .catch(err => console.error('Failed to load commits:', err))
       .finally(() => setLoading(false))
@@ -73,7 +89,7 @@ function Dashboard() {
                 <div className="leader-info">
                   <div
                     className="name"
-                    onClick={() => navigate('/user', { state: { user: u.name } })}
+                    onClick={() => navigate('/user', { state: { user: u.name, commits: userCommits[u.name], pfp :userPFPs.get(u.name), score:u.score}, })}
                   >
                     {u.name}
                   </div>
@@ -102,7 +118,7 @@ function Dashboard() {
                     />
                     <p
                       className="name"
-                      onClick={() => navigate('/user', { state: { user: u.name } })}
+                      onClick={() => navigate('/user', { state: { user: u.name, commits: userCommits[u.name], pfp :userPFPs.get(u.name), score:u.score} })}
                     >
                       {u.name}
                     </p>
