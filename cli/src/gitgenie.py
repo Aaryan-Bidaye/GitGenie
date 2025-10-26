@@ -14,7 +14,7 @@ load_dotenv()
 app = typer.Typer(help="AI-powered git commit CLI")
 from pymongo import MongoClient
 
-# your connection string
+#connection string
 
 def ensure_openrouter_key() -> str:
     from pymongo import MongoClient
