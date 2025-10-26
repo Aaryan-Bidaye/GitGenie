@@ -188,7 +188,7 @@ def split_subject_body(message: str) -> tuple[str, str]:
     return subject, body
 
 @app.command()
-def int(
+def integrate(
     model: str = typer.Option(MODEL, help="OpenRouter model id"),
     add_all: bool = typer.Option(True, help="Run `git add -A` before summarizing."),
     showcase: bool = typer.Option(False, help="Show the AI message but do not commit."),
