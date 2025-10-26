@@ -69,7 +69,7 @@ function Dashboard() {
   return (
     <div className="page-root">
       <header className="topbar">
-        <div className="brand" onClick={() => navigate('/')}>GitGenie</div>
+        <div className="brand" onClick={() => navigate('/')}>GitScribe</div>
       </header>
       <h1><b>{repo}</b></h1>
 
