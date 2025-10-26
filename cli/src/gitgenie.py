@@ -199,14 +199,12 @@ def code_qual(ai_impact):
         shell=True,
         capture_output=True,
     )
-    print(tencom)
 
     curcom = subprocess.run(
         ["git diff --cached --shortstat | awk '/files changed/ {print $4+$6}'"],
         shell=True,
         capture_output=True
     )
-    print(curcom)
 
     t_out=tencom.stdout.decode().strip()
     c_out=curcom.stdout.decode().strip()
