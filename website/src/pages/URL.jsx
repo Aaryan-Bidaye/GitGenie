@@ -25,7 +25,7 @@ function Search() {
       axios.get(`https://api.github.com/repos/${repoName}/commits`)
       .then(response => {
         console.log(response.data);
-        navigate('dashboard')
+        navigate('dashboard', {state: {repo: repoName}})
       })
       .catch(error =>{
         console.log("your shit sucks")
