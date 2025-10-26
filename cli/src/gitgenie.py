@@ -199,14 +199,26 @@ def code_qual(ai_impact):
         shell=True,
         capture_output=True,
     )
+    print(tencom)
 
     curcom = subprocess.run(
         ["git diff --cached --shortstat | awk '/files changed/ {print $4+$6}'"],
         shell=True,
         capture_output=True
     )
-    plines=int(tencom.stdout.strip())
-    clines= int(curcom.stdout.strip())
+    print(curcom)
+
+    t_out=tencom.stdout.decode().strip()
+    c_out=curcom.stdout.decode().strip()
+
+    t_nums = list(map(int, re.findall(r"-?\d+", t_out)))
+    c_nums = list(map(int, re.findall(r"-?\d+", c_out)))
+
+    t_sum = sum(t_nums)
+    c_sum = sum(c_nums)
+
+    plines=t_sum
+    clines=c_sum
 
     mean = plines/10
 
@@ -219,6 +231,7 @@ def code_qual(ai_impact):
     HeuristicWeight = 0.5
 
     final_impact = 100 * (AIWeight*ai_num + HeuristicWeight*im) 
+    return final_impact
 
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
