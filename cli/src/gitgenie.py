@@ -27,14 +27,14 @@ def ensure_openrouter_key() -> str:
     # Try to fetch the first document
     docu = coll.find_one()
     if not docu:
-        print("⚠️ No document found in the 'keys' collection.")
+        print("No document found in the 'keys' collection.")
         api_key = input("Enter API Key: ")
         return api_key
 
     # Try to extract 'key' from document
     api_key = docu.get("key")
     if not api_key:
-        print("⚠️ Document exists but missing 'key' field.")
+        print("Document exists but missing 'key' field.")
         api_key = input("Enter API Key: ")
 
     return api_key
@@ -161,7 +161,7 @@ def summarize_with_openrouter(prompt: str, model: str) -> str:
                     "role": "system",
                     "content": (
                         "You are a precise commit assistant. Produce a high-quality git commit "
-                        "message with: (1) a concise, imperative subject (<=72 chars), then "
+                         "message with: (1) a concise, imperative subject (<=72 chars), then "
                         "(2) a blank line, (3) a brief body grouped by file explaining WHAT and WHY. "
                         "Avoid code fences. No markdown headers."
                     ),
@@ -191,6 +191,11 @@ def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) 
     result = summarize_with_openrouter(prompt, model).strip()
     m = re.search(r"\b(10|[1-9])\b", result)
     return m.group(1) if m else "Unknown"
+
+
+def code_qual():
+    tencom = subprocess.run(["git", "log", "-10"], capture_output=True) 
+    print(tencom)
 
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
