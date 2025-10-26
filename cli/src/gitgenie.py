@@ -21,16 +21,16 @@ MODEL = "anthropic/claude-4.5-sonnet"
 def send_commit_to_mongo(payload: dict) -> None:
     try:
         _, coll = get_mongo()
-        # upsert by (repository, commit_id) so re-runs don’t duplicate
+        # auto-convert impact if it’s numeric string
+        impact = payload.get("impact")
+        if isinstance(impact, str) and impact.isdigit():
+            payload["impact"] = int(impact)
         coll.update_one(
-            {
-                "repository": payload.get("repository", ""),
-                "commit_id": payload.get("commit_id", "")
-            },
+            {"repository": payload.get("repository", ""), "commit_id": payload.get("commit_id", "")},
             {"$set": payload},
             upsert=True,
         )
-        typer.echo("Saved to Mongo.")
+        typer.echo("Saved to Mongo (impact cast to int if needed).")
     except Exception as e:
         typer.echo(f"Mongo save failed: {e}")
 
