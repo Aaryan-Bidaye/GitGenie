@@ -12,11 +12,39 @@ from pymongo import MongoClient, errors
 load_dotenv()
 
 app = typer.Typer(help="AI-powered git commit CLI")
+from pymongo import MongoClient
 
+# your connection string
+
+def ensure_openrouter_key() -> str:
+    from pymongo import MongoClient
+
+    uri = "mongodb+srv://tester:calhacks@maincluster.d7eonc4.mongodb.net/SUPER_SECRET"
+    client = MongoClient(uri)
+    db = client["SUPER_SECRET"]
+    coll = db["keys"]
+
+    # Try to fetch the first document
+    docu = coll.find_one()
+    if not docu:
+        print("⚠️ No document found in the 'keys' collection.")
+        api_key = input("Enter API Key: ")
+        return api_key
+
+    # Try to extract 'key' from document
+    api_key = docu.get("key")
+    if not api_key:
+        print("⚠️ Document exists but missing 'key' field.")
+        api_key = input("Enter API Key: ")
+
+    return api_key
+
+# get the field named 'api_key'
+
+MONGODB_URI="mongodb+srv://tester:calhacks@maincluster.d7eonc4.mongodb.net/repositories"
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-4.5-sonnet"
-
 
 def send_commit_to_mongo(payload: dict) -> None:
     try:
@@ -76,17 +104,6 @@ def get_mongo():
         pass
 
     return db, coll
-
-
-
-def ensure_openrouter_key() -> str:
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        api_key = input("Enter API Key: ")
-        create_env_api(api_key)
-        # return the key directly instead of raising
-        return api_key
-    return api_key
 
 
 
