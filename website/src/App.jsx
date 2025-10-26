@@ -3,6 +3,7 @@ import './App.css'
 import Search from './pages/URL'
 import Dashboard from './pages/Dashboard'
 import UserData from './pages/User'
+import Tween from './pages/Tween'
 
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
     <>
         <Routes>
           <Route path="/" element={<Search />} />
+          <Route path="/analyzing" element={<Tween/>} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/user" element={<UserData />} />
         </Routes>
