@@ -192,10 +192,33 @@ def rate_impact_with_openrouter(subject: str, body: str, diff: str, model: str) 
     m = re.search(r"\b(10|[1-9])\b", result)
     return m.group(1) if m else "Unknown"
 
+def code_qual(ai_impact):
 
-def code_qual():
-    tencom = subprocess.run(["git", "log", "-10"], capture_output=True) 
-    print(tencom)
+    tencom = subprocess.run(
+        "git log -10 --shortstat | awk '/files changed/ {inserted+=$4; deleted+=$6} END {print \"+\" inserted \" -\" deleted}'",
+        shell=True,
+        capture_output=True,
+    )
+
+    curcom = subprocess.run(
+        ["git diff --cached --shortstat | awk '/files changed/ {print $4+$6}'"],
+        shell=True,
+        capture_output=True
+    )
+    plines=int(tencom.stdout.strip())
+    clines= int(curcom.stdout.strip())
+
+    mean = plines/10
+
+    r = clines / mean
+
+    im = r/(r+1)
+    ai_num = ai_impact/10
+
+    AIWeight = 0.5
+    HeuristicWeight = 0.5
+
+    final_impact = 100 * (AIWeight*ai_num + HeuristicWeight*im) 
 
 def split_subject_body(message: str) -> tuple[str, str]:
     # First non-empty line = subject; rest = body
@@ -289,8 +312,8 @@ def integrate(
         author_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True).stdout.strip()
         remote_url = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True).stdout.strip()
 
-        impact = int(rate_impact_with_openrouter(subject, body, diff, model))
-
+        ai_impact = int(rate_impact_with_openrouter(subject, body, diff, model))
+        impact = code_qual(ai_impact=ai_impact)
         payload = {
             "username": author_name or "unknown",
             # "email": author_email or "unknown",
