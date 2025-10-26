@@ -34,8 +34,6 @@ function Search() {
 
   return (
     <div className="page-root">
-      {/* Styles moved to src/App.css for better performance during resize */}
-
       <header className="topbar">
         <div className="brand" onClick={()=>console.log("Home")}>GitGenie</div>
       </header>

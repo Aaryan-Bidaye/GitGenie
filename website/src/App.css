@@ -55,7 +55,7 @@
   display: flex;
   flex-direction: column;
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  padding: 32px;
+  padding-top: clamp(20vh, 10vw, 20px);
   margin: 0;
   max-width: none;
 }
@@ -71,7 +71,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 auto 32px auto;
+  margin: 10px auto 32px auto;
 }
 
 .brand {
@@ -105,6 +105,10 @@ h1{
   font-size: 30px;
   margin: 0 0 12px 0;
   color: #e7f1ff;
+}
+
+h3{
+  margin: -5px 0 5px 0;
 }
 
 .subtitle{ color: #a9b6cf; margin:18px }
@@ -147,3 +151,78 @@ form.search-form{
   h1{ font-size:24px }
   .topbar{ padding:0 12px }
 }
+
+
+.hLists{
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  padding: 0;
+  margin: 20px;
+}
+
+
+/* Leaderboard styles */
+.leaderboard{ 
+  list-style: none; 
+  padding: 0; 
+  margin: 20px; 
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+}
+.leader-card{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 260px;
+}
+.leader-rank{ font-weight: 700; font-size: 30px; color:#e7f1ff; min-width: 40px; text-align: center; }
+.pfp{ border-radius: 50%; width: 72px; height: 72px; object-fit: cover; border: 1.8px solid grey; }
+.leader-info{ 
+  display: flex; 
+  flex-direction: column; 
+  text-align: left; 
+  font-size: 20px;
+  font-weight: 700;
+}
+.leader-score{ color:#a9b6cf; font-size: 14px; }
+
+.small-user{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+}
+
+.pfp-small{
+  width: 25px;
+  height: 25px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 50%;
+}
+
+.name:hover{
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+table{
+  width: 100%;
+  border-collapse: collapse;
+  color: #e7f1ff;
+}
+table th, table td{
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 10px 12px;
+  text-align: left;
+}
+table thead th{
+  background: rgba(255,255,255,0.06);
+}
+
