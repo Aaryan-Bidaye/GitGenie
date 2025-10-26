@@ -1,49 +1,74 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import axios from 'axios' 
+import axios from 'axios'
+
+
 const baseURL = '/api'
-function Tween(){
-    
-    const [loading, setLoading] = useState(true)
-    const location = useLocation()
-    const {repo, data} = location.state || {}
-    
-    useEffect(() => {
-        if (data && data.length > 0) {
-            for(const commit of data){
-                const description = []
-                const author = commit.author.login
-                const sha = commit.sha
-                const encodedParam = encodeURIComponent(repo);
-                axios.get(`${baseURL}/${encodedParam}/9f11659e1ab0e35345072f03253dc0641312948c`)//`${baseURL}/${encodedParam}/${sha}`)
-                .then(response => {
-                    console.log(response.data)
-                }) 
-                .catch(error => {
-                    console.log('N/A ')
-                })
-                /*
-                axios.get(`https://api.github.com/repos/${repo}/${sha}`)
-                .then(response => {
-                    description.push()
-                    console.log(description)
-                }) 
-                .catch(error =>{
-                    console.log("something went wrong")
-                    console.log(error)
-                })
-                */
-                break
-            }
+
+function Tween() {
+  const [loading, setLoading] = useState(true)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { repo, data } = location.state || {}
+
+  useEffect(() => {
+    const isMissingRepo =
+      !repo ||
+      (typeof repo === 'string' && repo.trim() === '') ||
+      (typeof repo === 'object' && Object.keys(repo).length === 0)
+    if (isMissingRepo) {
+      navigate('/')
+      return
+    }
+
+    const analyzeCommits = async () => {
+      for (const commit of data) {
+        const existsResponse = await axios.get(`${baseURL}/${repo.split("/").join("@")}/${commit.sha}`);
+        if (existsResponse.status === 200) {
+          console.log("already exists");
+          continue;
         }
-    }, [data, repo])
-    
-    
-    console.log(data)
-    return <>
-    <p>tween service</p>
-    <p>your repo name is {repo}</p>
-    </>
+        try {
+          console.log('Processing commit:', commit.sha)
+          /*const commitData = await axios.get(
+            `https://api.github.com/repos/${repo}/commits/${commit.sha}`,
+            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+          )*/
+          const commitData = await axios.post(`${baseURL}/api/github`, {repo: repo,sha: commit.sha});
+          const commitChanges = commitData.data.files
+          const analysis = await axios.post('/api/analyzeCommit', { commitChanges })
+          const { impact, summary, body } = analysis.data
+          const data = {
+            repository: repo.split("/").join("@"),
+            username: commit.author.login,
+            date: commit.author.date,
+            sha: commit.sha,
+            summary: summary,
+            body: body,
+            impact: impact
+          };          
+          axios.post(baseURL, data)
+          .then(response => {
+            console.log("success!")
+            console.log(response)
+          })
+          .catch(error => {
+            console.log("something went wrong posting")
+            console.log(error)
+          })
+        } catch (err) {
+          console.error('Something went wrong with the analysis:', err)
+          break
+        }
+      }
+      setLoading(false)
+    }
+
+    analyzeCommits()
+    navigate('/dashboard', {state: {repo: repo}})
+  }, [repo, data, navigate])
+
+  return <>{loading ? <p>Analyzing repository...</p> : <p>Analysis complete!</p>}</>
 }
 
 export default Tween
