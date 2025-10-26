@@ -134,6 +134,7 @@ app.get('/api/:repository/:sha', async (req, res) => {
       commit: {
         username: commit.username,
         sha: commit.sha,
+        pfp: commit.pfp,
         date: commit.date,
         summary: commit.summary,
         body: commit.body,
@@ -153,6 +154,7 @@ app.post('/api', async (req, res) => {
   const body = req.body
   const commit = new CommitModel({
     username: body.username,
+    pfp: body.pfp,
     sha: body.sha,
     date: body.date,
     body: body.body,

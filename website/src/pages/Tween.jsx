@@ -23,31 +23,44 @@ function Tween() {
 
     const analyzeCommits = async () => {
       for (const commit of data) {
-        const existsResponse = await axios.get(`${baseURL}/${repo.split("/").join("@")}/${commit.sha}`);
-        if (existsResponse.status === 200) {
-          console.log("already exists");
-          continue;
-        }
+  let exists = false
+  try {
+    const existsResponse = await axios.get(`${baseURL}/${repo.split("/").join("@")}/${commit.sha}`)
+    if (existsResponse.status === 200) exists = true
+  } catch (err) {
+    if (err.response && err.response.status === 404) {
+      console.log("Collection or document not found — creating new one.")
+    } else {
+      console.error("Error checking existence:", err)
+      continue // skip or handle differently
+    }
+  }
+
+  if (exists) {
+    console.log("already exists")
+    continue
+  }
         try {
           console.log('Processing commit:', commit.sha)
           /*const commitData = await axios.get(
             `https://api.github.com/repos/${repo}/commits/${commit.sha}`,
             { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
           )*/
-          const commitData = await axios.post(`${baseURL}/api/github`, {repo: repo,sha: commit.sha});
+          const commitData = await axios.post(`${baseURL}/github`, {repo: repo,sha: commit.sha});
           const commitChanges = commitData.data.files
-          const analysis = await axios.post('/api/analyzeCommit', { commitChanges })
+          const analysis = await axios.post(`${baseURL}/analyzeCommit`, { commitChanges })
           const { impact, summary, body } = analysis.data
           const data = {
             repository: repo.split("/").join("@"),
             username: commit.author.login,
+            pfp: commit.author.avatar_url,
             date: commit.author.date,
             sha: commit.sha,
             summary: summary,
             body: body,
             impact: impact
           };          
-          axios.post(baseURL, data)
+          await axios.post(baseURL, data)
           .then(response => {
             console.log("success!")
             console.log(response)
@@ -62,10 +75,9 @@ function Tween() {
         }
       }
       setLoading(false)
+      navigate('/dashboard', {state: {repo: repo}})
     }
-
     analyzeCommits()
-    navigate('/dashboard', {state: {repo: repo}})
   }, [repo, data, navigate])
 
   return <>{loading ? <p>Analyzing repository...</p> : <p>Analysis complete!</p>}</>
