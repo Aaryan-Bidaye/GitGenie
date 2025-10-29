@@ -28,74 +28,6 @@ def ensure_anthropic_key() -> str:
         return api_key
     return docu["key"]
 
-# get the field named 'api_key'
-
-MONGODB_URI="mongodb+srv://tester:calhacks@maincluster.d7eonc4.mongodb.net/repositories"
-BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "anthropic/claude-4.5-sonnet"
-
-def send_commit_to_mongo(payload: dict) -> None:
-    try:
-        _, coll = get_mongo()
-        # upsert by (repository, commit_id) so re-runs don’t duplicate
-        coll.update_one(
-            {
-                "repository": payload.get("repository", ""),
-                "commit_id": payload.get("commit_id", "")
-            },
-            {"$set": payload},
-            upsert=True,
-        )
-        typer.echo("Saved to Mongo.")
-    except Exception as e:
-        typer.echo(f"Mongo save failed: {e}")
-
-def get_mongo():
-    """
-    Returns (db, collection) using env: and git config --get remote.origin.url
-
-    """
-    uri = MONGODB_URI 
-    if not uri:
-        raise RuntimeError("MONGODB_URI not set in .env")
-
-
-    client = MongoClient(uri, ServerSelectionTimeoutMS=5000, socketTimeoutMS=10000)
-    client.admin.command("ping")
-
-    dbname = "repositories" 
-    db = client[dbname]
-
-    try:
-        username = subprocess.run(
-            ["git", "config", "user.name"],
-            capture_output=True, text=True
-        ).stdout.strip() or "unkown"
-
-        remote_url = subprocess.run(
-            ["git", "config", "--get", "remote.origin.url"],
-            capture_output=True, text=True
-        ).stdout.strip()
-
-        repo_name = os.path.splitext(os.path.basename(remote_url))[0] if remote_url else "unkown_repo"
-
-        coll_name = f"{username}/{repo_name}"
-    except Exception:
-        coll_name = "unkown_repo"
-
-    coll = db[coll_name]
-
-    try:
-        coll.create_index([("commit_id", 1)], unique=True, name="uniq_commit")
-        coll.create_index([("created_at", -1)], name="by_created_desc")
-    except errors.PyMongoError:
-        pass
-
-    return db, coll
-
-
-
 def create_env_api(api_key):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     env_path = os.path.join(script_dir, ".env")
@@ -304,7 +236,7 @@ def integrate(
 
 @app.command()
 def doc(
-    model: str = typer.Option("anthropic/claude-4.5-sonnet", help="OpenRouter model id"),
+    model: str = typer.Option("claude-sonnet-4-5", help="OpenRouter model id"),
     add_all: bool = typer.Option(False, help="Run `git add -A` before generating docs."),
     stage_output: bool = typer.Option(False, help="Stage the generated docs after writing."),
     title: str = typer.Option("", help="Optional custom title for the CHANGELOG entry."),
