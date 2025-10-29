@@ -301,32 +301,6 @@ def integrate(
     else:
         typer.echo("Skipped push.")
 
-    # Ask to store commit data to DB (only if pushed)
-    if pushed and typer.confirm("Also send this commit to the database?", default=False):
-        rev = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
-        commit_sha = rev.stdout.strip() if rev.returncode == 0 else ""
-        author_name = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True).stdout.strip()
-        author_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True).stdout.strip()
-        remote_url = subprocess.run(["git", "config", "--get", "remote.origin.url"], capture_output=True, text=True).stdout.strip()
-
-        impact = code_qual(ai_impact=ai_impact)
-        payload = {
-            "username": author_name or "unknown",
-            # "email": author_email or "unknown",
-            #"repository": remote_url or "",
-            "commit_id": commit_sha,
-            "summary": subject,
-            "body": body,
-            "impact": impact,
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }
-        
-        send_commit_to_mongo(payload)
-
-
-    elif not pushed:
-        typer.echo("Commit not pushed, skipping backend upload.")
-
 
 @app.command()
 def doc(
@@ -369,7 +343,8 @@ def doc(
     )
 
     typer.echo("Generating docs from staged diff...")
-    md =summarize_with_anthropic(docs_prompt, model)
+    doc_subject, doc_body, doc_rating = summarize_with_anthropic(docs_prompt, model)
+    md = doc_subject + ("\n\n" + doc_body if doc_body else "")
 
     # Prepare paths
     changes_dir = ensure_dir("docs/changes")
