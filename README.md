@@ -1,2 +1,2 @@
-# GitGenie
+# GitScribe
 testing
